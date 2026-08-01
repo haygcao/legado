@@ -43,7 +43,8 @@
 * 登录UI
 > 不使用内置webView登录网站，需要使用`登录URL`规则实现登录逻辑，可使用`登录检查JS`检查登录结果  
 > 版本20221113重要更改：按钮支持调用`登录URL`规则里面的函数，必须实现`login`函数  
-> 版本20251224：文本输入类型支持`action`键，在用户完成输入后执行js函数，可用来判断用户输入内容，返回true会执行保存
+> 版本20260131：文本输入类型支持`action`键，在用户完成输入后执行js函数，用来判断用户输入内容并进行提示  
+文本类输入需用户主动打勾保存，或调用java.upLoginData更新
 ```
 //所有按钮类型："text"、"password"、"button"、"toggle"、"select"
 规则填写示范
@@ -136,7 +137,7 @@ getResponse(): Response //返回访问结果,网络朗读引擎采用的是这�
 
 * 发现url格式
 > 对比登录ui，name换成了title，url用来打开发现页面，其余相同  
-> 额外的变量[infoMap](https://github.com/Luoyacheng/legado/blob/main/app/src/main/java/io/legado/app/utils/InfoMap.kt)可读取按钮的切换值
+> 额外的变量[infoMap](https://github.com/Luoyacheng/legado-E/blob/main/app/src/main/java/io/legado/app/utils/InfoMap.kt)可读取按钮的切换值
 ```js
 //读取值
 var input = infoMap["关键词"];
@@ -263,6 +264,7 @@ let options = {
 
 * 回调操作
 > 先启用事件监听按钮，然后软件触发事件时会执行回调规则的js代码。  
+可空字符串变量`result`的值为事件对应内容。  
 字符串变量`event`的值对应事件名称，目前的事件有
 ```js
 "clickBookName" //点击详情页书名
@@ -276,6 +278,8 @@ let options = {
 "clickCopyBookUrl" //点击详情页拷贝书籍URl按钮
 "clickCopyTocUrl" //点击详情页拷贝目录URl按钮
 "clickCopyPlayUrl" //音频、视频界面点击拷贝播放URL按钮
+"clickBookLabel" //点击详情页标签
+"longClickBookLabel" //长按详情页标签
 //上面的事件回调执行结果返回true会消费事件，原本的软件操作不会再执行
 
 //下面的事件无法被回调结果消费
@@ -290,7 +294,7 @@ let options = {
 
 * 图片解密
 > 适用于图片需要二次解密的情况，直接填写JavaScript，返回解密后的`ByteArray`  
-> 部分变量说明：java（仅支持[js扩展类](https://github.com/gedoor/legado/blob/master/app/src/main/java/io/legado/app/help/JsExtensions.kt)），result为待解密图片的`ByteArray`，src为图片链接
+> 部分变量说明：java（仅支持[js扩展类](https://github.com/luoyacheng/legado-E/blob/master/app/src/main/java/io/legado/app/help/JsExtensions.kt)），result为待解密图片的`ByteArray`，src为图片链接
 
 ```js
 java.createSymmetricCrypto("AES/CBC/PKCS5Padding", key, iv).decrypt(result)
@@ -383,3 +387,4 @@ result = `<img src = "${url}">`;
 </usehtml>
 ```
 > 支持Markdown语法，需要用`<md></md>`包裹起来  
+> 支持使用浏览器渲染，需要用`<useweb></useweb>`包裹起来  

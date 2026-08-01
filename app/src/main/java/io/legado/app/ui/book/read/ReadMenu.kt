@@ -3,8 +3,11 @@ package io.legado.app.ui.book.read
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.ColorStateList
+import android.database.ContentObserver
 import android.graphics.PorterDuff
 import android.graphics.drawable.GradientDrawable
+import android.net.Uri
+import android.provider.Settings
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
@@ -53,6 +56,8 @@ import io.legado.app.utils.visible
 import splitties.views.onClick
 import splitties.views.onLongClick
 import androidx.core.graphics.toColorInt
+import io.legado.app.constant.BookType
+import io.legado.app.utils.buildMainHandler
 
 /**
  * 阅读界面菜单
@@ -278,19 +283,85 @@ class ReadMenu @JvmOverloads constructor(
     }
 
     /**
+     * 系统亮度监听，在高阳光亮度时启用
+     */
+    private var contentObserver: ContentObserver? = null
+    /**
      * 设置屏幕亮度
      */
     fun setScreenBrightness(value: Float) {
         activity?.run {
-            var brightness = BRIGHTNESS_OVERRIDE_NONE
-            if (!brightnessAuto() && value != BRIGHTNESS_OVERRIDE_NONE) {
-                brightness = value
-                if (brightness < 1f) brightness = 1f
-                brightness /= 255f
+            fun setBrightness(value: Float) {
+                val params = window.attributes
+                params.screenBrightness = value
+                window.attributes = params
             }
-            val params = window.attributes
-            params.screenBrightness = brightness
-            window.attributes = params
+            val autoBrightness = BRIGHTNESS_OVERRIDE_NONE
+            if (brightnessAuto() || value == autoBrightness) {
+                setBrightness(autoBrightness)
+                return
+            }
+            val brightness = if (value < 1f) 0.004f else value / 255f
+            var isSunMax = false
+            if (brightness == 1f) {
+                val sysBrightness = getCurrentBrightness(context)
+                if (sysBrightness == 255) {
+                    isSunMax = true
+                }
+            }
+            if (isSunMax) {
+                contentObserver = object : ContentObserver(buildMainHandler()) {
+                    override fun onChange(selfChange: Boolean, uri: Uri?) {
+                        super.onChange(selfChange, uri)
+                        if (contentObserver == null) return
+                        if (uri == Settings.System.getUriFor(Settings.System.SCREEN_BRIGHTNESS)) {
+                            val sysBrightness = getCurrentBrightness(context)
+                            if (sysBrightness < 200) {
+                                setBrightness(brightness)
+                                contentObserver?.let {
+                                    context.contentResolver.unregisterContentObserver(it)
+                                }
+                                contentObserver = null
+                            } else if (sysBrightness < 255) {
+                                setBrightness(brightness)
+                            } else {
+                                setBrightness(autoBrightness)
+                            }
+                        }
+                    }
+                }
+                val brightnessUri = Settings.System.getUriFor(Settings.System.SCREEN_BRIGHTNESS)
+                context.contentResolver.registerContentObserver(
+                    brightnessUri,
+                    false,
+                    contentObserver!!
+                )
+                setBrightness(autoBrightness)
+            } else {
+                setBrightness(brightness)
+            }
+        }
+    }
+
+    /**
+     * 获取系统亮度值
+     */
+    private fun getCurrentBrightness(context: Context): Int {
+        return try {
+            Settings.System.getInt(
+                context.contentResolver,
+                Settings.System.SCREEN_BRIGHTNESS
+            )
+        } catch (_: Settings.SettingNotFoundException) {
+            -1
+        }
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        contentObserver?.let {
+            context.contentResolver.unregisterContentObserver(it)
+            contentObserver = null
         }
     }
 
@@ -377,14 +448,28 @@ class ReadMenu @JvmOverloads constructor(
             val book = ReadBook.book ?: return@setOnClickListener
             val chapter = appDb.bookChapterDao.getChapter(book.bookUrl, ReadBook.durChapterIndex)
             activity?.let { activity ->
-                SourceCallBack.callBackBtn(activity, SourceCallBack.CLICK_CUSTOM_BUTTON, ReadBook.bookSource, book, chapter)
+                SourceCallBack.callBackBtn(
+                    activity,
+                    SourceCallBack.CLICK_CUSTOM_BUTTON,
+                    ReadBook.bookSource,
+                    book,
+                    chapter,
+                    BookType.text
+                )
             }
         }
         tvCustomBtn.setOnLongClickListener {
             val book = ReadBook.book ?: return@setOnLongClickListener true
             val chapter = appDb.bookChapterDao.getChapter(book.bookUrl, ReadBook.durChapterIndex)
             activity?.let { activity ->
-                SourceCallBack.callBackBtn(activity, SourceCallBack.LONG_CLICK_CUSTOM_BUTTON, ReadBook.bookSource, book, chapter)
+                SourceCallBack.callBackBtn(
+                    activity,
+                    SourceCallBack.LONG_CLICK_CUSTOM_BUTTON,
+                    ReadBook.bookSource,
+                    book,
+                    chapter,
+                    BookType.text
+                )
             }
             true
         }

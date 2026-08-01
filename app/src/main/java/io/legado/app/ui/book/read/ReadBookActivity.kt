@@ -140,6 +140,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.core.net.toUri
+import androidx.lifecycle.Lifecycle
 import com.script.rhino.runScriptWithContext
 import io.legado.app.model.analyzeRule.AnalyzeUrl.Companion.paramPattern
 import io.legado.app.ui.login.SourceLoginJsExtensions
@@ -363,7 +364,7 @@ class ReadBookActivity : BaseReadBookActivity(),
         networkChangedListener.register()
         networkChangedListener.onNetworkChanged = {
             // 当网络是可用状态且无需初始化时同步进度（初始化中已有同步进度逻辑）
-            if (AppConfig.syncBookProgressPlus && NetworkUtils.isAvailable() && !justInitData) {
+            if (AppConfig.syncBookProgressPlus && NetworkUtils.isAvailable() && !justInitData && ReadBook.inBookshelf) {
                 ReadBook.syncProgress({ progress -> sureNewProgress(progress) })
             }
         }
@@ -377,12 +378,14 @@ class ReadBookActivity : BaseReadBookActivity(),
         ReadBook.cancelPreDownloadTask()
         unregisterReceiver(timeBatteryReceiver)
         upSystemUiVisibility()
-        if (!BuildConfig.DEBUG) {
+        if (!BuildConfig.DEBUG && ReadBook.inBookshelf) {
             if (AppConfig.syncBookProgressPlus) {
                 ReadBook.syncProgress()
             } else {
                 ReadBook.uploadProgress()
             }
+        }
+        if (!BuildConfig.DEBUG) {
             Backup.autoBack(this)
         }
         justInitData = false
@@ -450,12 +453,11 @@ class ReadBookActivity : BaseReadBookActivity(),
             }
         }
         lifecycleScope.launch {
-            menu.findItem(R.id.menu_get_progress)?.isVisible = withContext(IO) {
+            val show = ReadBook.inBookshelf && withContext(IO) {
                 AppWebDav.isOk
             }
-            menu.findItem(R.id.menu_cover_progress)?.isVisible = withContext(IO) {
-                AppWebDav.isOk
-            }
+            menu.findItem(R.id.menu_get_progress)?.isVisible = show
+            menu.findItem(R.id.menu_cover_progress)?.isVisible = show
         }
     }
 
@@ -880,7 +882,7 @@ class ReadBookActivity : BaseReadBookActivity(),
                 ReadBook.bookSource?.bookSourceUrl?.let {
                     scopes.add(it)
                 }
-                val text = selectedText.lineSequence().map { it.trim() }.joinToString("\n")
+                val text = selectedText.lineSequence().joinToString("\n") { it.trim() }
                 replaceActivity.launch(
                     ReplaceEditActivity.startIntent(
                         this,
@@ -1302,11 +1304,18 @@ class ReadBookActivity : BaseReadBookActivity(),
                     if (payAction.isNullOrBlank()) {
                         throw NoStackTraceException("no pay action")
                     }
-                    val analyzeRule = AnalyzeRule(book, source)
-                    analyzeRule.setCoroutineContext(coroutineContext)
-                    analyzeRule.setBaseUrl(chapter.url)
-                    analyzeRule.setChapter(chapter)
-                    analyzeRule.evalJS(payAction).toString()
+                    val java = SourceLoginJsExtensions(this@ReadBookActivity, source, BookType.text)
+                    runScriptWithContext {
+                        source.evalJS(payAction) {
+                            put("java", java)
+                            put("book", book)
+                            put("chapter", chapter)
+                            put("title", chapter.title)
+                            put("baseUrl", chapter.url)
+                            put("result", null)
+                            put("src", null)
+                        }.toString()
+                    }
                 }.onSuccess(IO) {
                     if (it.isAbsUrl()) {
                         startActivity<WebViewActivity> {
@@ -1751,6 +1760,7 @@ class ReadBookActivity : BaseReadBookActivity(),
                     10 -> ChapterProvider.upLayout()
                     11 -> readView.submitRenderTask()
                     12 -> readView.upPageTouchClick()
+                    13 -> upPageAnim()
                 }
             }
         }
@@ -1798,10 +1808,19 @@ class ReadBookActivity : BaseReadBookActivity(),
             readMenu.upSeekBar()
         }
         observeEvent<Boolean>(EventBus.REFRESH_BOOK_CONTENT) { //书源js函数触发刷新
-            ReadBook.book?.let {
-                ReadBook.curTextChapter = null
-                binding.readView.upContent()
-                viewModel.refreshContentDur(it)
+            if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                ReadBook.book?.let {
+                    ReadBook.curTextChapter = null
+                    binding.readView.upContent()
+                    viewModel.refreshContentDur(it)
+                }
+            }
+        }
+        observeEvent<Boolean>(EventBus.REFRESH_BOOK_TOC) { //书源js函数触发刷新
+            if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                ReadBook.book?.let {
+                    loadChapterList(it)
+                }
             }
         }
     }

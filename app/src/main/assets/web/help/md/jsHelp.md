@@ -1,5 +1,5 @@
 # js变量和函数
-> 阅读使用[Rhino v1.8.0](https://github.com/mozilla/rhino) 作为JavaScript引擎以便于[调用Java类和方法](https://m.jb51.net/article/92138.htm)，查看[ECMAScript兼容性表格](https://mozilla.github.io/rhino/compat/engines.html)　
+> 阅读使用[Rhino v1.8.1](https://github.com/mozilla/rhino) 作为JavaScript引擎以便于[调用Java类和方法](https://m.jb51.net/article/92138.htm)，查看[ECMAScript兼容性表格](https://mozilla.github.io/rhino/compat/engines.html)　
 
 > [Rhino运行时](https://github.com/mozilla/rhino/blob/master/rhino/src/main/java/org/mozilla/javascript/ScriptRuntime.java)懒加载导入的Java类和方法
 
@@ -13,7 +13,7 @@
 
 > 在书源规则中使用`@js` `<js>` `{{}}`可使用JavaScript调用阅读部分内置的类和方法
 
-> 注意为了安全，阅读会屏蔽部分java类调用，见[RhinoClassShutter](https://github.com/gedoor/legado/blob/master/modules/rhino/src/main/java/com/script/rhino/RhinoClassShutter.kt)　
+> 注意为了安全，阅读会屏蔽部分java类调用，见[RhinoClassShutter](https://github.com/luoyacheng/legado-E/blob/master/modules/rhino/src/main/java/com/script/rhino/RhinoClassShutter.kt)　
 
 > 不同的书源规则中支持的调用的Java类和方法可能有所不同
 
@@ -24,20 +24,21 @@
 |java|当前类|
 |baseUrl|当前url,String  |
 |result|上一步的结果|
-|book|[书籍类](https://github.com/gedoor/legado/blob/master/app/src/main/java/io/legado/app/data/entities/Book.kt)|
-|rssArticle|[Article类](https://github.com/gedoor/legado/blob/master/app/src/main/java/io/legado/app/data/entities/RssArticle.kt)|
-|chapter|[章节类](https://github.com/gedoor/legado/blob/master/app/src/main/java/io/legado/app/data/entities/BookChapter.kt)|
-|source|[基础书源类](https://github.com/gedoor/legado/blob/master/app/src/main/java/io/legado/app/data/entities/BaseSource.kt)|
-|cookie|[cookie操作类](https://github.com/gedoor/legado/blob/master/app/src/main/java/io/legado/app/help/http/CookieStore.kt)| 
-|cache|[缓存操作类](https://github.com/gedoor/legado/blob/master/app/src/main/java/io/legado/app/help/CacheManager.kt)|
+|book|[书籍类](https://github.com/luoyacheng/legado-E/blob/master/app/src/main/java/io/legado/app/data/entities/Book.kt)|
+|rssArticle|[Article类](https://github.com/luoyacheng/legado-E/blob/master/app/src/main/java/io/legado/app/data/entities/RssArticle.kt)|
+|chapter|[章节类](https://github.com/luoyacheng/legado-E/blob/master/app/src/main/java/io/legado/app/data/entities/BookChapter.kt)|
+|source|[基础书源类](https://github.com/luoyacheng/legado-E/blob/master/app/src/main/java/io/legado/app/data/entities/BaseSource.kt)|
+|cookie|[cookie操作类](https://github.com/luoyacheng/legado-E/blob/master/app/src/main/java/io/legado/app/help/http/CookieStore.kt)| 
+|cache|[缓存操作类](https://github.com/luoyacheng/legado-E/blob/master/app/src/main/java/io/legado/app/help/CacheManager.kt)|
 |title|章节当前标题 String|
 |src| 请求返回的源码|
 |nextChapterUrl|下一章节url|
 |isFromBookInfo|是否为详情页刷新|
 
 ## 当前类对象的可使用的部分方法
+函数带有默认值的函数会自动重载，可以不填。  
 
-### [RssJsExtensions](https://github.com/Luoyacheng/legado/blob/main/app/src/main/java/io/legado/app/ui/rss/read/RssJsExtensions.kt)独有函数
+### [RssJsExtensions](https://github.com/Luoyacheng/legado-E/blob/main/app/src/main/java/io/legado/app/ui/rss/read/RssJsExtensions.kt)独有函数
 > 在订阅源`shouldOverrideUrlLoading`规则中使用  
 > 被下方`SourceLoginJsExtensions`类包含，也能使用这些函数  
 > 订阅添加跳转url拦截, js, 返回true拦截,js变量url,可以通过js打开url  
@@ -46,10 +47,10 @@
 * 调用阅读搜索  
 ```js
 * @param key 搜索关键词
-* @param searchScope 搜索作用域
-//searchScope作用域,单个源为`源名称::源地址`的形式；分组为源分组名称和`,`符号隔开的形式
-java.searchBook(key: String)
-java.searchBook(key: String, searchScope: String)
+* @param searchScope 搜索作用域，为空时调用所以书源搜索
+//searchScope作用域,形式为`源名称::源地址`、或者`,`符号隔开的源分组名称
+//在书源调用时可写为java.searchBook(key, source)，仅本书源进行搜索
+java.searchBook(key: String, searchScope: String? = null)
 ```
 
 * 添加书架  
@@ -72,8 +73,8 @@ java.open(name: String, url: String? = null, title: String? = null, origin: Stri
 java.showPhoto(src: String)
 ```
 
-### [SourceLoginJsExtensions](https://github.com/Luoyacheng/legado/blob/main/app/src/main/java/io/legado/app/ui/login/SourceLoginJsExtensions.kt)独有函数
-> 只在`登录界面按钮`被触发、`界面按钮的回调`事件、`发现按钮`函数、`图片链接click键`中有效
+### [SourceLoginJsExtensions](https://github.com/Luoyacheng/legado-E/blob/main/app/src/main/java/io/legado/app/ui/login/SourceLoginJsExtensions.kt)独有函数
+> 只在`登录界面按钮`被触发、`界面按钮的回调`事件、`发现按钮`函数、`图片链接click键`、`购买规则`中有效
 ```js
 //用内置浏览器打开本地html
 * @param url 指定网页的基础URL，解决本地网页跨越问题
@@ -86,9 +87,11 @@ java.copyText(text: String)
 //实时更新登录界面用户信息，upLoginData(null)会全部重置为默认值
 java.upLoginData(data: Map<String, String?>?)
 //刷新登录界面
-java.reLoginView()
+java.reLoginView(deltaUp: Boolean = false)
 //刷新书籍详情页
 java.refreshBookInfo()
+//刷新书籍目录页
+java.refreshBookToc()
 //刷新书籍正文内容
 java.refreshContent()
 //清除tts源的缓存，仅限tts源的登录界面
@@ -96,9 +99,9 @@ java.clearTtsCache()
 //刷新发现，仅限发现按钮
 java.refreshExplore()
 ```
-[showBrowser](https://github.com/Luoyacheng/legado/wiki/java.showBrowser%E5%87%BD%E6%95%B0%E4%BB%8B%E7%BB%8D)函数介绍
+[showBrowser](https://github.com/Luoyacheng/legado-E/wiki/java.showBrowser%E5%87%BD%E6%95%B0%E4%BB%8B%E7%BB%8D)函数介绍
 
-### [AnalyzeUrl](https://github.com/gedoor/legado/blob/master/app/src/main/java/io/legado/app/model/analyzeRule/AnalyzeUrl.kt) 部分函数
+### [AnalyzeUrl](https://github.com/luoyacheng/legado-E/blob/master/app/src/main/java/io/legado/app/model/analyzeRule/AnalyzeUrl.kt) 部分函数
 > js中通过java.调用,只在`登录检查JS`规则中有效
 ```js
 initUrl() //重新解析url,可以用于登录检测js登录后重新解析url重新访问
@@ -107,7 +110,7 @@ getStrResponse( jsStr: String? = null, sourceRegex: String? = null) //返回访�
 getResponse(): Response //返回访问结果,网络朗读引擎采用的是这个,调用登录后在调用这方法可以重新访问,参考阿里云登录检测
 ```
 
-### [AnalyzeRule](https://github.com/gedoor/legado/blob/master/app/src/main/java/io/legado/app/model/analyzeRule/AnalyzeRule.kt) 部分函数
+### [AnalyzeRule](https://github.com/luoyacheng/legado-E/blob/master/app/src/main/java/io/legado/app/model/analyzeRule/AnalyzeRule.kt) 部分函数
 * 获取文本/文本列表
 > `mContent` 待解析源代码，默认为当前页面  
 > `isUrl` 链接标识，默认为`false`
@@ -145,12 +148,11 @@ java.get(key)
 java.put(key, value)
 ```
 
-### [js扩展类](https://github.com/gedoor/legado/blob/master/app/src/main/java/io/legado/app/help/JsExtensions.kt) 部分函数
+### [js扩展类](https://github.com/luoyacheng/legado-E/blob/master/app/src/main/java/io/legado/app/help/JsExtensions.kt) 部分函数
 
-* 链接解析[JsURL](https://github.com/gedoor/legado/blob/master/app/src/main/java/io/legado/app/utils/JsURL.kt)　
+* 链接解析[JsURL](https://github.com/luoyacheng/legado-E/blob/master/app/src/main/java/io/legado/app/utils/JsURL.kt)　
 ```js
-java.toURL(url): JsURL
-java.toURL(url, baseUrl): JsURL
+java.toURL(url: String, baseUrl: String? = null): JsURL
 ```
 * 获取SystemWebView User-Agent
 ```js
@@ -158,7 +160,6 @@ java.getWebViewUA(): String
 ```
 * 网络请求
 ```js
-//带有默认值的参数可不填
 
 java.ajax(urlStr, callTimeout: Int? = null): String
 
@@ -260,8 +261,7 @@ java.get*ByteArrayContent(url: String, path: String): ByteArray?
 ```
 * URI编码
 ```js
-java.encodeURI(str: String) //默认enc="UTF-8"
-java.encodeURI(str: String, enc: String)
+java.encodeURI(str: String, enc: String = "UTF-8")
 ```
 * base64
 > flags参数可省略，默认Base64.NO_WRAP，查看[flags参数说明](https://blog.csdn.net/zcmain/article/details/97051870)　
@@ -328,7 +328,7 @@ readTxtFile(path: String): String
 deleteFile(path: String) 
 ```
 
-### [js加解密类](https://github.com/gedoor/legado/blob/master/app/src/main/java/io/legado/app/help/JsEncodeUtils.kt) 部分函数
+### [js加解密类](https://github.com/luoyacheng/legado-E/blob/master/app/src/main/java/io/legado/app/help/JsEncodeUtils.kt) 部分函数
 
 > 提供在JavaScript环境中快捷调用crypto算法的函数，由[hutool-crypto](https://www.hutool.cn/docs/#/crypto/概述)实现  
 > 由于兼容性问题，hutool-crypto当前版本为5.8.22  
@@ -363,17 +363,12 @@ java.createAsymmetricCrypto(transformation)
 > 解密加密参数 data支持ByteArray|Base64String|HexString|InputStream  
 ```js
 //解密为ByteArray String
-cipher.decrypt(data,  usePublicKey: Boolean? = true
-)
-cipher.decryptStr(data, usePublicKey: Boolean? = true
-)
+cipher.decrypt(data,  usePublicKey: Boolean? = true)
+cipher.decryptStr(data, usePublicKey: Boolean? = true)
 //加密为ByteArray Base64字符 HEX字符
-cipher.encrypt(data,  usePublicKey: Boolean? = true
-)
-cipher.encryptBase64(data,  usePublicKey: Boolean? = true
-)
-cipher.encryptHex(data,  usePublicKey: Boolean? = true
-)
+cipher.encrypt(data,  usePublicKey: Boolean? = true)
+cipher.encryptBase64(data,  usePublicKey: Boolean? = true)
+cipher.encryptHex(data,  usePublicKey: Boolean? = true)
 ```
 * 签名
 > 输入参数 key 支持ByteArray|**Utf8String**
@@ -398,8 +393,8 @@ java.digestBase64Str(data: String, algorithm: String,): String?
 ```
 * md5
 ```js
-java.md5Encode(str)
-java.md5Encode16(str)
+java.md5Encode(str: String)
+java.md5Encode16(str: String)
 ```
 * HMac
 ```js
@@ -524,29 +519,27 @@ source.refreshJSLib()
 ## cookie对象的部分可用函数
 ```js
 获取全部cookie
-cookie.getCookie(url)
+cookie.getCookie(url: String)
 获取cookie某一键值
-cookie.getKey(url,key)
+cookie.getKey(url: String, key: String)
 设置cookie
-cookie.setCookie(url,cookie)
+cookie.setCookie(url: String, cookie: String)
 替换cookie
-cookie.replaceCookie(url,cookie)
+cookie.replaceCookie(url: String, cookie: String)
 删除cookie
-cookie.removeCookie(url)
+cookie.removeCookie(url: String)
 设置内置浏览器cookie
-cookie.setWebCookie(url,cookie)
+cookie.setWebCookie(url: String, cookie: String)
 ```
 
 ## cache对象的部分可用函数
 > saveTime单位:秒，可省略  
 > 保存至数据库和缓存文件(50M)，保存的内容较大时请使用`getFile putFile`
 ```js
-保存
-cache.put(key: String, value: String, saveTime: Int)
-读取数据库
-cache.get(key: String): String?
+保存,saveTime为0时无过期时间
+cache.put(key: String, value: String, saveTime: Int = 0)
 读取数据库,onlyDisk为true时只从磁盘读取
-cache.get(key: String, onlyDisk: Boolean): String?
+cache.get(key: String, onlyDisk: Boolean = false): String?
 删除
 cache.delete(key: String)
 缓存文件内容
@@ -564,14 +557,13 @@ cache.deleteMemory(key: String)
 ## 跳转外部链接/应用函数
 ```js
 // 跳转外部链接，传入http链接或者scheme跳转到浏览器或其他应用
-java.openUrl(url:String)
 // 指定mimeType，可以跳转指定类型应用，例如（video/*）
-java.openUrl(url:String,mimeType:String)
+java.openUrl(url: String, mimeType: String = null)
 ```
 ## 视频播放器函数
 ```js
 * @param url 视频播放链接
 * @param title 视频的标题
-* @param float 是否悬浮窗打开
-java.openVideoPlayer(url: String, title: String, float: Boolean)
+* @param isFloat 是否悬浮窗打开
+java.openVideoPlayer(url: String, title: String, isFloat: Boolean = false)
 ```

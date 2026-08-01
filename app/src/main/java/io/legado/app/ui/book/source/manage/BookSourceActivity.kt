@@ -48,6 +48,7 @@ import io.legado.app.ui.widget.recycler.ItemTouchCallback
 import io.legado.app.ui.widget.recycler.VerticalDivider
 import io.legado.app.utils.ACache
 import io.legado.app.utils.NetworkUtils
+import io.legado.app.utils.StringUtils
 import io.legado.app.utils.applyTint
 import io.legado.app.utils.cnCompare
 import io.legado.app.utils.dpToPx
@@ -113,19 +114,33 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
             showDialogFragment(ImportBookSourceDialog(uri.toString()))
         }
     }
-    private val exportDir = registerForActivityResult(HandleFileContract()) {
+    private val exportResult = registerForActivityResult(HandleFileContract()) {
         it.uri?.let { uri ->
             alert(R.string.export_success) {
-                if (uri.toString().isAbsUrl()) {
+                val url = uri.toString()
+                if (url.isAbsUrl()) {
                     setMessage(DirectLinkUpload.getSummary())
+                    val time = System.currentTimeMillis()
+                    shibboleth {
+                        val shibbolethUrl = StringUtils.toShibboleth(url, StringUtils.BOOK_SOURCE, time)
+                        alert(R.string.shibboleth) {
+                            val alertBinding = DialogEditTextBinding.inflate(layoutInflater).apply {
+                                editView.setText(shibbolethUrl)
+                            }
+                            customView { alertBinding.root }
+                            okButton {
+                                sendToClip(shibbolethUrl)
+                            }
+                        }
+                    }
                 }
                 val alertBinding = DialogEditTextBinding.inflate(layoutInflater).apply {
                     editView.hint = getString(R.string.path)
-                    editView.setText(uri.toString())
+                    editView.setText(url)
                 }
                 customView { alertBinding.root }
                 okButton {
-                    sendToClip(uri.toString())
+                    sendToClip(url)
                 }
             }
         }
@@ -392,6 +407,17 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        adapter.upResumed(true)
+    }
+
+    override fun onPause() {
+        adapter.upResumed(false)
+        super.onPause()
+    }
+
+
     private fun initLiveDataGroup() {
         lifecycleScope.launch {
             appDb.bookSourceDao.flowGroups()
@@ -471,7 +497,7 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
                 sortAscending,
                 sort
             ) { file, name ->
-                exportDir.launch {
+                exportResult.launch {
                     mode = HandleFileContract.EXPORT
                     fileData = HandleFileContract.FileData(
                         name,
@@ -751,9 +777,7 @@ class BookSourceActivity : VMBaseActivity<ActivityBookSourceBinding, BookSourceV
     }
 
     override fun searchBook(bookSource: BookSourcePart) {
-        startActivity<SearchActivity> {
-            putExtra("searchScope", SearchScope(bookSource).toString())
-        }
+        SearchActivity.start(this, bookSource)
     }
 
     override fun debug(bookSource: BookSourcePart) {

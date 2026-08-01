@@ -830,7 +830,7 @@
     <string name="sync_book_progress_t">Synchronous reading progress</string>
     <string name="sync_book_progress_s">Synchronize reading progress when entering / exiting the reading interface</string>
     <string name="sync_book_progress_plus_t">Sync Enhancement</string>
-    <string name="sync_book_progress_plus_s">Sync cloud progress when re-entering the page (e.g., after screen off, returning from background, etc.) or when the network becomes available</string>
+    <string name="sync_book_progress_plus_s">Sync cloud progress when re-entering the page (screen off, returning from background, etc.) or when the network becomes available. You will be prompted before syncing new progress.</string>
     <string name="sync_book_progress_success">Sync progress success</string>
     <string name="create_bookmark_error">Failed to create bookmark</string>
     <string name="single_url">Single URL</string>
@@ -1166,6 +1166,7 @@
     <string name="preview_image_by_click">Click to preview image</string>
     <string name="default_home_page">Default HomePage</string>
     <string name="screen_portrait_reversed">Portrait Reversed</string>
+    <string name="screen_landscape_reversed">Landscape Reversed</string>
     <string name="del_ruby_tag">Delete ruby tag</string>
     <string name="del_h_tag">Delete h tag</string>
     <string name="adjust_chapter_page">Adjust of chapter page</string>
@@ -1186,7 +1187,7 @@
     <string name="daily_chapters">Daily Chapters</string>
     <string name="start_chapter">Start Chapter</string>
     <string name="update_to_variant_title">检查更新查找版本</string>
-    <string name="update_to_variant_summary">检查更新时查找其他签名版本</string>
+    <string name="update_to_variant_summary">切换正式版/测试版</string>
     <string name="default_version">当前</string>
     <string name="official_version">正式版</string>
     <string name="beta_release_version">测试版</string>
@@ -1230,8 +1231,6 @@
     <string name="hide_manga_title">隐藏漫画列表标题</string>
     <string name="refresh_explore">刷新发现</string>
     <string name="padding_display_cutouts">Padding display cutouts</string>
-    <string name="system_media_control_compatibility_change">System Media Control Compatibility Change</string>
-    <string name="system_media_control_compatibility_change_summary">If system media controls do not appear on the lock screen, you can try enabling this, for example on OneUI 7.0 or Vivo devices.</string>
     <string name="read_aloud_pause_resume">Pause/Resume Speech</string>
     <string name="manga_epaper">墨水屏</string>
     <string name="manga_epaper_stting">墨水屏设置</string>
@@ -1305,7 +1304,7 @@
     <string name="about_description_sigma">\u3000\u3000阅读Sigma继承自legado，旨在原版基础上完善和增加功能，欢迎您的加入。</string>
     <string name="contributors_summary_sigma">gedoor、Luoyacheng、Horis和 Xwite 等，详情请在 GitHub 中查看</string>
     <string name="app_share_description_sigma">
-        阅读 Sigma 下载地址：\nhttps://github.com/Luoyacheng/legado/releases
+        阅读 Sigma 下载地址：\nhttps://github.com/Luoyacheng/legado-E/releases
     </string>
     <string name="sure_cache_book">是否确认开始缓存？</string>
     <string name="non_printable_set">不可视字符设定</string>
@@ -1342,4 +1341,6 @@
     <string name="invalid_file_path">文件路径无效</string>
     <string name="is_system_tts_no_export">无法导出系统tts</string>
     <string name="click_image_way">点击图片方式</string>
+    <string name="auto_update_summary">每天自动检查软件是否更新</string>
+    <string name="shibboleth">口令</string>
 </resources>

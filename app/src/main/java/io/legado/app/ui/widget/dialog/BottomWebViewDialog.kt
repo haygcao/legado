@@ -76,6 +76,7 @@ import io.legado.app.help.webView.WebViewPool.BLANK_HTML
 import io.legado.app.help.webView.WebViewPool.DATA_HTML
 import io.legado.app.lib.dialogs.SelectItem
 import io.legado.app.lib.dialogs.selector
+import io.legado.app.model.Download
 import io.legado.app.ui.file.HandleFileContract
 import io.legado.app.utils.ACache
 import io.legado.app.utils.GSON
@@ -87,7 +88,9 @@ import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.runBlocking
 import java.io.ByteArrayInputStream
 import java.lang.ref.WeakReference
+import java.net.URLDecoder
 import java.util.Date
+import androidx.core.graphics.createBitmap
 
 class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view), WebJsExtensions.Callback {
 
@@ -143,8 +146,9 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
     @Suppress("DEPRECATION")
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val dialog = super.onCreateDialog(savedInstanceState)
-        activity?.window?.decorView?.systemUiVisibility?.also {
-            dialog.window?.decorView?.systemUiVisibility = it
+        dialog.window?.let { window ->
+            window.decorView.systemUiVisibility = activity?.window?.decorView?.systemUiVisibility ?: 0
+            window.addFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
         }
         return dialog
     }
@@ -164,6 +168,9 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
     }
 
     private fun setConfig(config: Config, first: Boolean = false) {
+        if (!isAdded || context == null) {
+            return
+        }
         behavior?.let { behavior ->
             config.state?.let { behavior.state = it }
             config.peekHeight?.let { behavior.peekHeight = it }
@@ -203,7 +210,7 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
                         }
                     sheet.background = shapeDrawable
                     sheet.clipToOutline = true
-                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
                         currentWebView.outlineProvider =
                             object : android.view.ViewOutlineProvider() {
                                 override fun getOutline(
@@ -229,7 +236,7 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
                     sheet.backgroundTintList = null
                     sheet.background = null
                     sheet.clipToOutline = false
-                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
                         currentWebView.outlineProvider = null
                         currentWebView.clipToOutline = false
                         binding.customWebView.outlineProvider = null
@@ -381,6 +388,13 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
             }
             return@setOnLongClickListener false
         }
+        currentWebView.setDownloadListener { url, _, contentDisposition, _, _ ->
+            var fileName = URLUtil.guessFileName(url, contentDisposition, null)
+            fileName = URLDecoder.decode(fileName, "UTF-8")
+            currentWebView.longSnackbar(fileName, getString(R.string.action_download)) {
+                Download.start(requireContext(), url, fileName)
+            }
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -440,10 +454,10 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
                             val insertPos = closingHeadIndex + 1
                             StringBuilder(html).insert(insertPos, JS_URL).toString()
                         } else {
-                            html
+                            JS_URL + html
                         }
                     } else {
-                        html
+                        JS_URL + html
                     }
                 }
                 appDb.bookSourceDao.getBookSource(sourceKey).let {
@@ -456,7 +470,6 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
                 }
                 val bookType = args.getInt("bookType", 0)
                 currentWebView.post {
-                    currentWebView.resumeTimers()
                     currentWebView.onResume() //缓存库拿的需要激活
                     initWebView(analyzeUrl.url, spliceHtml, analyzeUrl.headerMap, bookType)
                     currentWebView.clearHistory()
@@ -698,6 +711,9 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
     )
 
     inner class CustomWebChromeClient : WebChromeClient() {
+        override fun getDefaultVideoPoster(): Bitmap {
+            return super.getDefaultVideoPoster() ?: createBitmap(100, 100)
+        }
 
         override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
             originOrientation = activity?.requestedOrientation //先记录原始方向，避免被js控制的影响
@@ -758,9 +774,7 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
             return true
         }
 
-        private var jsInjected = false
         override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-            jsInjected = false
             if (needClearHistory) {
                 needClearHistory = false
                 currentWebView.clearHistory() //清除历史
@@ -776,7 +790,7 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
                     startActivity<OnLineImportActivity> {
                         data = url
                     }
-                    return true
+                    true
                 }
 
                 else -> {
@@ -795,29 +809,29 @@ class BottomWebViewDialog() : BottomSheetDialogFragment(R.layout.dialog_web_view
             handler?.proceed()
         }
 
+        private var jsInjected = false
         override fun shouldInterceptRequest(
             view: WebView, request: WebResourceRequest
         ): WebResourceResponse? {
             val url = request.url.toString()
             if (request.isForMainFrame) {
                 if (!preloadJs.isNullOrEmpty()) {
+                    jsInjected = false
                     if (url.startsWith("data:text/html;") || request.method == "POST") {
                         return super.shouldInterceptRequest(view, request)
                     }
-                    return runBlocking {
+                    return runBlocking(IO) {
                         getModifiedContentWithJs(url, request) ?: super.shouldInterceptRequest(view, request)
                     }
                 }
-            } else if (!jsInjected) {
-                if (url == nameUrl) {
-                    jsInjected = true
-                    val preloadJs = preloadJs ?: ""
-                    return WebResourceResponse(
-                        "application/javascript",
-                        "utf-8",
-                        ByteArrayInputStream("(() => {$JS_INJECTION\n$preloadJs\n})();".toByteArray())
-                    )
-                }
+            } else if (!jsInjected && url == nameUrl) {
+                jsInjected = true
+                val preloadJs = preloadJs ?: ""
+                return WebResourceResponse(
+                    "text/javascript",
+                    "utf-8",
+                    ByteArrayInputStream("(() => {$JS_INJECTION\n$preloadJs\n})();".toByteArray())
+                )
             }
             return super.shouldInterceptRequest(view, request)
         }

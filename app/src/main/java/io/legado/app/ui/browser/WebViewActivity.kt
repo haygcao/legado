@@ -44,6 +44,7 @@ import io.legado.app.utils.toggleSystemBar
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 import io.legado.app.utils.visible
 import android.webkit.JavascriptInterface
+import android.webkit.URLUtil
 import io.legado.app.constant.AppLog
 import io.legado.app.help.webView.WebJsExtensions
 import io.legado.app.help.webView.WebJsExtensions.Companion.basicJs
@@ -56,8 +57,13 @@ import io.legado.app.help.webView.PooledWebView
 import io.legado.app.help.webView.WebViewPool
 import io.legado.app.help.webView.WebViewPool.BLANK_HTML
 import io.legado.app.help.webView.WebViewPool.DATA_HTML
+import io.legado.app.model.Download
 import splitties.systemservices.powerManager
 import java.lang.ref.WeakReference
+import java.net.URLDecoder
+import androidx.core.graphics.createBitmap
+import io.legado.app.help.WebCacheManager
+import io.legado.app.help.webView.WebJsExtensions.Companion.nameCache
 
 class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
     companion object {
@@ -110,6 +116,7 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
                         val webJsExtensions = WebJsExtensions(it, this, currentWebView)
                         currentWebView.addJavascriptInterface(webJsExtensions, nameJava)
                     }
+                    currentWebView.addJavascriptInterface(WebCacheManager, nameCache)
                 }
                 currentWebView.loadDataWithBaseURL(url, html, "text/html", "utf-8", url)
             }
@@ -264,6 +271,13 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
             }
             return@setOnLongClickListener false
         }
+        currentWebView.setDownloadListener { url, _, contentDisposition, _, _ ->
+            var fileName = URLUtil.guessFileName(url, contentDisposition, null)
+            fileName = URLDecoder.decode(fileName, "UTF-8")
+            currentWebView.longSnackbar(fileName, getString(R.string.action_download)) {
+                Download.start(this, url, fileName)
+            }
+        }
     }
 
     private fun saveImage(webPic: String) {
@@ -309,7 +323,6 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
         super.onPause()
         if (powerManager.isInteractive) {
             wasScreenOff = false
-            currentWebView.pauseTimers()
             currentWebView.onPause()
         } else {
             wasScreenOff = true
@@ -319,7 +332,6 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
     override fun onResume() {
         super.onResume()
         if (!wasScreenOff) {
-            currentWebView.resumeTimers()
             currentWebView.onResume()
         }
     }
@@ -362,6 +374,9 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
     }
 
     inner class CustomWebChromeClient : WebChromeClient() {
+        override fun getDefaultVideoPoster(): Bitmap {
+            return super.getDefaultVideoPoster() ?: createBitmap(100, 100)
+        }
 
         override fun onProgressChanged(view: WebView?, newProgress: Int) {
             super.onProgressChanged(view, newProgress)
@@ -467,7 +482,7 @@ class WebViewActivity : VMBaseActivity<ActivityWebViewBinding, WebViewModel>() {
                     startActivity<OnLineImportActivity> {
                         data = url
                     }
-                    return true
+                    true
                 }
 
                 else -> {

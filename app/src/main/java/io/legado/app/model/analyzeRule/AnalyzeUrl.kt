@@ -37,6 +37,7 @@ import io.legado.app.help.http.postForm
 import io.legado.app.help.http.postJson
 import io.legado.app.help.http.postMultipart
 import io.legado.app.help.source.getShareScope
+import io.legado.app.model.Debug
 import io.legado.app.utils.EncoderUtils
 import io.legado.app.utils.GSON
 import io.legado.app.utils.GSONStrict
@@ -238,7 +239,11 @@ class AnalyzeUrl(
             }
             urlOption?.let { option ->
                 option.getMethod()?.let {
-                    if (it.equals("POST", true)) method = RequestMethod.POST
+                    method = when (it.uppercase()) {
+                        "POST" -> RequestMethod.POST
+                        "HEAD" -> RequestMethod.HEAD
+                        else -> RequestMethod.GET
+                    }
                 }
                 option.getHeaderMap()?.forEach { entry ->
                     headerMap[entry.key.toString()] = entry.value.toString()
@@ -264,17 +269,17 @@ class AnalyzeUrl(
         }
         urlNoQuery = url
         when (method) {
-            RequestMethod.GET -> {
+            RequestMethod.POST -> body?.let {
+                if (!it.isJson() && !it.isXml() && headerMap["Content-Type"].isNullOrEmpty()) {
+                    analyzeFields(it)
+                }
+            }
+
+            else -> {
                 val pos = url.indexOf('?')
                 if (pos != -1) {
                     analyzeQuery(url.substring(pos + 1))
                     urlNoQuery = url.substring(0, pos)
-                }
-            }
-
-            RequestMethod.POST -> body?.let {
-                if (!it.isJson() && !it.isXml() && headerMap["Content-Type"].isNullOrEmpty()) {
-                    analyzeFields(it)
                 }
             }
         }
@@ -383,6 +388,9 @@ class AnalyzeUrl(
     }
 
     fun put(key: String, value: String): String {
+        if (key == "bookName" || key == "title") {
+            Debug.log("≡变量 $key 在特定情况下会被覆盖，建议使用其他键名")
+        }
         chapter?.putVariable(key, value)
             ?: ruleData?.putVariable(key, value)
         return value
@@ -482,6 +490,11 @@ class AnalyzeUrl(
                             } else {
                                 postJson(body)
                             }
+                        }
+
+                        RequestMethod.HEAD -> {
+                            get(urlNoQuery, encodedQuery)
+                            head()
                         }
 
                         else -> get(urlNoQuery, encodedQuery)

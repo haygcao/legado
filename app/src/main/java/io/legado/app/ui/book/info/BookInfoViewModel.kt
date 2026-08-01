@@ -3,7 +3,6 @@ package io.legado.app.ui.book.info
 import android.app.Application
 import android.content.Intent
 import android.net.Uri
-import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
@@ -220,7 +219,7 @@ class BookInfoViewModel(application: Application) : BaseViewModel(application) {
         }
     }
 
-    private fun loadChapter(
+    fun loadChapter(
         book: Book,
         runPreUpdateJs: Boolean = true,
         scope: CoroutineScope = viewModelScope,
@@ -290,8 +289,11 @@ class BookInfoViewModel(application: Application) : BaseViewModel(application) {
                     it, source = bookSource,
                     coroutineContext = coroutineContext
                 )
-                val mFileName = UrlUtil.getFileName(analyzeUrl)
-                    ?: "${fileNameNoExtension}.${analyzeUrl.type}"
+                var mFileName = UrlUtil.getFileName(analyzeUrl)
+                    ?: fileNameNoExtension
+                analyzeUrl.type?.let { suffix ->
+                    mFileName += ".${suffix}"
+                }
                 WebFile(it, mFileName)
             }
         }.onError {
@@ -492,16 +494,15 @@ class BookInfoViewModel(application: Application) : BaseViewModel(application) {
         }
     }
 
-    fun clearCache() {
+    fun clearCache(book: Book) {
         execute {
-            BookHelp.clearCache(bookData.value!!)
-            if (ReadBook.book?.bookUrl == bookData.value!!.bookUrl) {
+            BookHelp.clearCache(book)
+            if (ReadBook.book?.bookUrl == book.bookUrl) {
                 ReadBook.clearTextChapter()
             }
-            if (ReadManga.book?.bookUrl == bookData.value!!.bookUrl) {
+            if (ReadManga.book?.bookUrl == book.bookUrl) {
                 ReadManga.clearMangaChapter()
             }
-            SourceCallBack.callBackBook(SourceCallBack.CLICK_CLEAR_CACHE, bookSource, bookData.value!!)
         }.onSuccess {
             context.toastOnUi(R.string.clear_cache_success)
         }.onError {
@@ -526,14 +527,13 @@ class BookInfoViewModel(application: Application) : BaseViewModel(application) {
         }
     }
 
-    fun onButtonClick(activity: AppCompatActivity, name: String, click: String?) {
+    fun onButtonClick(activity: AppCompatActivity, name: String, click: String) {
         val source = bookSource ?: return
         val book = bookData.value ?: return
-        val jsStr = click ?: return
         execute {
             val java = SourceLoginJsExtensions(activity, source)
             runScriptWithContext {
-                source.evalJS(jsStr) {
+                source.evalJS(click) {
                     put("result", null)
                     put("java", java)
                     put("book", book)
@@ -541,7 +541,7 @@ class BookInfoViewModel(application: Application) : BaseViewModel(application) {
             }
         }.onError {
             AppLog.put("${source.bookSourceName}: ${it.localizedMessage}", it)
-            context.toastOnUi("$name button click error\n${it.localizedMessage}")
+            context.toastOnUi("$name click error\n${it.localizedMessage}")
         }
     }
 

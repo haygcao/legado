@@ -10,12 +10,15 @@ import com.bumptech.glide.Glide
 import io.legado.app.R
 import io.legado.app.base.BaseDialogFragment
 import io.legado.app.databinding.DialogTextViewBinding
+import io.legado.app.help.CacheManager
 import io.legado.app.help.IntentData
 import io.legado.app.lib.theme.primaryColor
 import io.legado.app.ui.code.CodeEditActivity
 import io.legado.app.utils.applyTint
 import io.legado.app.utils.setHtml
 import io.legado.app.utils.setLayout
+import io.legado.app.utils.setMarkdown
+import io.legado.app.utils.showDialogFragment
 import io.legado.app.utils.startActivity
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 import io.noties.markwon.Markwon
@@ -83,7 +86,13 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
                             .build()
                         markwon.toMarkdown(content)
                     }
-                    markwon.setParsedMarkdown(binding.textView, markdown)
+                    binding.textView.setMarkdown(
+                        markwon,
+                        markdown,
+                        imgOnLongClickListener = { source  ->
+                            showDialogFragment(PhotoDialog(source))
+                        }
+                    )
                 }
 
                 Mode.HTML.name -> binding.textView.setHtml(content)
@@ -101,10 +110,11 @@ class TextDialog() : BaseDialogFragment(R.layout.dialog_text_view) {
                 when (menu.itemId) {
                     R.id.menu_close -> dismissAllowingStateLoss()
                     R.id.menu_fullscreen_edit -> {
+                        val cacheKey = "code_text_${System.currentTimeMillis()}"
+                        CacheManager.putMemory(cacheKey, content)
                         startActivity<CodeEditActivity> {
-                            putExtra("text", content)
+                            putExtra("cacheKey", cacheKey)
                             putExtra("title", title)
-                            putExtra("writable", false)
                             putExtra("languageName", if (mode == Mode.MD.name) "text.html.markdown" else "text.html.basic")
                         }
                     }

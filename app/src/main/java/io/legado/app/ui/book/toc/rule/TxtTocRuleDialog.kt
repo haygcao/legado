@@ -36,12 +36,10 @@ import io.legado.app.utils.ACache
 import io.legado.app.utils.applyTint
 import io.legado.app.utils.isAbsUrl
 import io.legado.app.utils.launch
-import io.legado.app.utils.readText
 import io.legado.app.utils.setLayout
 import io.legado.app.utils.showDialogFragment
 import io.legado.app.utils.showHelp
 import io.legado.app.utils.splitNotBlank
-import io.legado.app.utils.toastOnUi
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.flow.catch
@@ -73,12 +71,8 @@ class TxtTocRuleDialog() : BaseDialogFragment(R.layout.dialog_toc_regex),
         showDialogFragment(ImportTxtTocRuleDialog(it))
     }
     private val importDoc = registerForActivityResult(HandleFileContract()) {
-        kotlin.runCatching {
-            it.uri?.readText(requireContext())?.let { source ->
-                showDialogFragment(ImportTxtTocRuleDialog(source))
-            }
-        }.onFailure { e ->
-            toastOnUi("readTextError:${e.localizedMessage}")
+        it.uri?.let { uri ->
+            showDialogFragment(ImportTxtTocRuleDialog(uri.toString()))
         }
     }
 
@@ -130,6 +124,16 @@ class TxtTocRuleDialog() : BaseDialogFragment(R.layout.dialog_toc_regex),
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        adapter.upResumed(true)
+    }
+
+    override fun onPause() {
+        adapter.upResumed(false)
+        super.onPause()
+    }
+
     private fun initSelectedName(tocRules: List<TxtTocRule>) {
         if (selectedName == null && durRegex != null) {
             tocRules.forEach {
@@ -151,6 +155,7 @@ class TxtTocRuleDialog() : BaseDialogFragment(R.layout.dialog_toc_regex),
                 mode = HandleFileContract.FILE
                 allowExtensions = arrayOf("txt", "json")
             }
+
             R.id.menu_import_onLine -> showImportDialog()
             R.id.menu_import_qr -> qrCodeResult.launch()
             R.id.menu_import_default -> viewModel.importDefault()
@@ -275,18 +280,16 @@ class TxtTocRuleDialog() : BaseDialogFragment(R.layout.dialog_toc_regex),
 
         override fun registerListener(holder: ItemViewHolder, binding: ItemTocRegexBinding) {
             binding.apply {
-                rbRegexName.setOnCheckedChangeListener { buttonView, isChecked ->
-                    if (buttonView.isPressed && isChecked) {
+                rbRegexName.setOnUserCheckedChangeListener { isChecked ->
+                    if (isChecked) {
                         selectedName = getItem(holder.layoutPosition)?.name
                         updateItems(0, itemCount - 1, bundleOf("upSelect" to null))
                     }
                 }
-                swtEnabled.setOnCheckedChangeListener { buttonView, isChecked ->
-                    if (buttonView.isPressed) {
-                        getItem(holder.layoutPosition)?.let {
-                            it.enable = isChecked
-                            viewModel.update(it)
-                        }
+                swtEnabled.setOnUserCheckedChangeListener { isChecked ->
+                    getItem(holder.layoutPosition)?.let {
+                        it.enable = isChecked
+                        viewModel.update(it)
                     }
                 }
                 ivEdit.setOnClickListener {

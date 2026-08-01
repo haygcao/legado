@@ -38,8 +38,8 @@ object AppUpdateGitee : AppUpdate.AppUpdateInterface {
         if (!res.isSuccessful) {
             throw NoStackTraceException("获取新版本出错(${res.code})")
         }
-        val body = res.body?.text()
-        if (body.isNullOrBlank()) {
+        val body = res.body.text()
+        if (body.isBlank()) {
             throw NoStackTraceException("获取新版本出错")
         }
         if (!checkVariant.isBeta()) {
@@ -64,7 +64,13 @@ object AppUpdateGitee : AppUpdate.AppUpdateInterface {
     ): Coroutine<AppUpdate.UpdateInfo> {
         return Coroutine.async(scope) {
             getLatestRelease()
-                .filter { it.appVariant == checkVariant }
+                .filter {
+                    if (AppConst.appInfo.appVariant == AppVariant.BETA_RELEASE) { //不切版本
+                        it.appVariant == AppConst.appInfo.appVariant
+                    } else {
+                        it.appVariant == checkVariant
+                    }
+                }
                 .firstOrNull { it.versionName > AppConst.appInfo.versionName }
                 ?.let {
                     return@async AppUpdate.UpdateInfo(
@@ -74,7 +80,7 @@ object AppUpdateGitee : AppUpdate.AppUpdateInterface {
                         it.name
                     )
                 }
-                ?: throw NoStackTraceException("已是最新版本")
+            throw NoStackTraceException("已是最新版本")
         }.timeout(10000)
     }
 }

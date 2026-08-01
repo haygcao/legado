@@ -110,7 +110,7 @@ class HttpTtsEditDialog() : BaseDialogFragment(R.layout.dialog_http_tts_edit, tr
             result.data?.getStringExtra("text")?.let {
                 view.setText(it)
             }
-            result.data?.getIntExtra("cursorPosition", -1)?.takeIf { it >= 0 }?.let {
+            result.data?.getIntExtra("cursorPosition", -1)?.takeIf { it in 0 ..< view.text.length }?.let {
                 view.setSelection(it)
             }
         }
@@ -127,8 +127,7 @@ class HttpTtsEditDialog() : BaseDialogFragment(R.layout.dialog_http_tts_edit, tr
                 putExtra("cursorPosition", view.selectionStart)
             }
             textEditLauncher.launch(intent)
-        }
-        else {
+        } else {
             toastOnUi(R.string.please_focus_cursor_on_textbox)
         }
     }
